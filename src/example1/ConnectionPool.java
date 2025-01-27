@@ -15,21 +15,7 @@ public class ConnectionPool {
     private List<Connection> availableConnections;
     private List<Connection> usedConnections;
 
-    public static ConnectionPool create(
-            String url,
-            String user,
-            String password,
-            int initialPoolSize,
-            int maxPoolSize) throws SQLException {
-        List<Connection> connections = new ArrayList<>(initialPoolSize);
-
-        for (int i = 0; i < initialPoolSize; i++) {
-            connections.add(createConnection(url, user, password));
-        }
-
-        return new ConnectionPool(url, user, password, connections, maxPoolSize);
-    }
-
+    //! sicherstellt, dass der ConnectionPool nur über die create()-Methode erstellt werden kann. (Wie Singelton)
     private ConnectionPool(String url, String user, String password, List<Connection> pool, int maxPoolSize) {
         this.url = url;
         this.user = user;
@@ -39,25 +25,57 @@ public class ConnectionPool {
         this.usedConnections = new ArrayList<>();
     }
 
-    public synchronized Connection getConnection() throws SQLException {
-        // Falls es verfuegbare Verbindungen gibt
-        if (!availableConnections.isEmpty()) {
-            Connection connection = createConnection(url, user, password);
-            usedConnections.add(connection);
-            return connection;
+    //! erstellt einen PoolInstanz
+    public static ConnectionPool create(
+            String url,
+            String user,
+            String password,
+            int initialPoolSize,
+            int maxPoolSize) throws SQLException {
+        List<Connection> connections = new ArrayList<>(initialPoolSize);
+
+        try {
+            for (int i = 0; i < initialPoolSize; i++) {
+                connections.add(createConnection(url, user, password));
+            }
+        } catch (SQLException e) {
+            // Bereits erstellte Verbindungen schließen
+            for (Connection conn : connections) {
+                if (conn != null) {
+                    conn.close();
+                }
+            }
+            throw e; // Ausnahme erneut werfen
         }
 
-        // Falls wir noch nicht die maximale Poolgroesse erreicht haben
-        if (usedConnections.size() < maxPoolSize) {
-            Connection connection = createConnection(url, user, password);
-            usedConnections.add(connection);
-            return connection;
-        }
-
-        // Warten bis eine Connection frei wird
-        throw new SQLException("Maximale Poolgroesse erreicht, keine Verbindung verfuegbar.");
+        return new ConnectionPool(url, user, password, connections, maxPoolSize);
     }
 
+
+    //! Holt Datenbankverbindung aus dem Pool
+    public synchronized Connection getConnection() throws SQLException {
+        Connection connection = null;
+
+        // Falls es verfügbare Verbindungen gibt, nimm eine aus dem Pool
+        if (!availableConnections.isEmpty()) {
+            connection = availableConnections.remove(availableConnections.size() - 1);
+        }
+        // Falls der Pool nicht voll ist, erstelle eine neue Verbindung
+        else if (usedConnections.size() < maxPoolSize) {
+            connection = createConnection(url, user, password);
+        }
+        // Falls keine Verbindung verfügbar ist und der Pool voll ist
+        else {
+            throw new SQLException("Maximale Poolgröße erreicht, keine Verbindung verfügbar.");
+        }
+
+        usedConnections.add(connection); // Markiere die Verbindung als verwendet
+        return connection;
+    }
+
+
+    //! Methode gibt eine bereits verwendete Verbindung an den Pool zurück, sodass sie wieder verfügbar ist
+    // synchronized stellt sicher, dass nur ein Thread gleichzeitig auf diese Methode zugreifen kann
     public synchronized void releaseConnection(Connection connection) {
         if (connection != null) {
             usedConnections.remove(connection);
@@ -65,6 +83,7 @@ public class ConnectionPool {
         }
     }
 
+    // HilfsFunktionen
 
     private static Connection createConnection(String url, String user, String password) throws SQLException {
         return DriverManager.getConnection(url, user, password);
