@@ -9,9 +9,9 @@ public class Main {
     public static void main(String[] args) {
         try {
             ConnectionPool connectionPool = ConnectionPool.create(
-                    "jdbc:mysql://localhost:3306/adampos",
-                    "root",
-                    "AdamPos123",
+                    "jdbc:mysql://localhost:3306/DataBaseName",
+                    "username",
+                    "passowrd",
                     2, // direkt 2 Objekts initialisieren
                     3
             );
@@ -45,6 +45,7 @@ public class Main {
 
 
             // Nun könnte man erneut eine Verbindung anfordern ...
+            //! Es wird nicht neu erstellt, sondern connection1 wiederverwendet
             Connection connection4 = connectionPool.getConnection();
             System.out.println("Verbindung 4 bekommen, Verfügbare Verbindungen: "
                     + connectionPool.getAvailableConnectionsCount());
