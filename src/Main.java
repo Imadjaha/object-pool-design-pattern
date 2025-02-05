@@ -1,5 +1,3 @@
-package example1;
-
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -11,7 +9,7 @@ public class Main {
             ConnectionPool connectionPool = ConnectionPool.create(
                     "jdbc:mysql://localhost:3306/DataBaseName",
                     "username",
-                    "passowrd",
+                    "password",
                     2, // direkt 2 Objekts initialisieren
                     3
             );
